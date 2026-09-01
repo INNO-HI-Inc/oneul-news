@@ -1,0 +1,19 @@
+{
+  "name": "oneul-hi-news",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "아침 7시 — 매일 아침 7시에 발행되는 뉴스 브리핑. 오늘하이(iOS)가 매일 읽어간다.",
+  "scripts": {
+    "build": "node build.mjs",
+    "dry": "node build.mjs --dry",
+    "serve": "node --run build && npx --yes serve dist"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.0",
+    "zod": "^4.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
