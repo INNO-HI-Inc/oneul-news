@@ -1,3 +1,7 @@
 node_modules/
 dist/
 .DS_Store
+
+# 아침 실행 로그
+.morning.log
+.morning.out.log

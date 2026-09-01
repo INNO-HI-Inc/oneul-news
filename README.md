@@ -27,27 +27,58 @@ npm run build    # dist/ 에 생성
 open dist/index.html
 ```
 
-API 키 없이도 **항상 완성된다.** `ANTHROPIC_API_KEY`가 있으면 Claude가 요약을 다듬고,
-없으면 통신사 리드 문장을 그대로 쓴다. 둘 다 같은 모양의 결과물이 나온다.
+### 요약은 무엇으로 하나
+
+세 가지 중 되는 것을 알아서 고른다. **어느 쪽이든 실패하면 리드 문장으로 내려가고,
+사이트는 언제나 완성된다.**
+
+| 방식 | 조건 | 품질 |
+|---|---|---|
+| `cli` | 이 컴퓨터에 `claude` 명령이 있으면 (**API 키 불필요**) | 가장 좋음 |
+| `api` | `ANTHROPIC_API_KEY` 가 있으면 | 가장 좋음 |
+| `lead` | 둘 다 없으면 | 통신사 리드 문장을 존댓말로 다듬어 씀 |
+
+`cli` 는 설치된 Claude Code 를 그대로 부른다(`claude -p`). 12건씩 나눠 부탁하고,
+한 묶음이 실패해도 그 묶음만 리드 문장으로 메운다. 31건 기준 약 4분.
 
 | 환경변수 | 기본값 | 설명 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | (없음) | 있으면 Claude로 요약 |
-| `NEWS_MODEL` | `claude-opus-5` | 요약 모델 |
+| `NEWS_SUMMARIZER` | 자동 | `cli` / `api` / `lead` 로 강제 지정 |
+| `NEWS_CLI_MODEL` | `claude-opus-5` | `claude` 명령에 넘길 모델 |
+| `ANTHROPIC_API_KEY` | (없음) | 있으면 `api` 방식 |
+| `NEWS_MODEL` | `claude-opus-5` | `api` 방식의 모델 |
 | `SITE_URL` | `https://inno-hi-inc.github.io/oneul-news` | canonical·사이트맵·RSS의 절대 주소 |
 
 페이지 안의 링크는 전부 상대경로라, 루트에 올리든 `/news/` 아래에 올리든 그대로 돌아간다.
 
 ## 매일 아침 7시 자동 발행
 
-`.github/workflows/news-daily.yml` — `0 22 * * *`(UTC) = **07:00 KST**.
-사이트를 만들어 GitHub Pages 로 배포하고, `data/`의 보관본을 저장소에 커밋한다.
+요약은 API 키 없이 하고 싶으므로 **두 곳이 나눠 맡는다.**
 
-> 준비물: 저장소 Settings → Secrets and variables → Actions
-> - `ANTHROPIC_API_KEY` (선택) — 없으면 리드 문장 요약으로 발행된다
-> - `NEWS_SITE_URL` (선택, 변수) — 사이트 주소가 바뀌면 지정
->
-> Pages 는 Settings → Pages → Source = **GitHub Actions** 로 설정돼 있어야 한다.
+```
+06:40 KST  집 맥 (launchd)     수집 → claude 명령으로 요약 → data/ 를 저장소에 push
+                               → 서버 워크플로를 깨움
+07:00 KST  GitHub Actions      오늘치 보관본이 있으면  → 그리기만 하고 배포 (--render-only)
+                               없으면(맥이 꺼져 있었으면) → 직접 수집해 리드 문장으로 발행
+```
+
+맥이 자고 있어도 **7시에는 무조건 새 브리핑이 올라간다.** 요약 품질만 달라진다.
+
+**서버 쪽** — `.github/workflows/news-daily.yml`, `0 22 * * *`(UTC) = 07:00 KST.
+Pages 는 Settings → Pages → Source = **GitHub Actions** 여야 한다.
+
+**이 맥 쪽** — `scripts/morning.sh` 를 `~/Library/LaunchAgents/kr.ai.innohi.oneulnews.morning.plist`
+가 매일 06:40 에 부른다. 네트워크가 없거나 요약이 리드 문장으로 내려가면 아무것도 올리지 않고
+서버 발행에 맡긴다. 로그는 `.morning.log`.
+
+```bash
+# 지금 한 번 돌려보기
+launchctl kickstart -k gui/$(id -u)/kr.ai.innohi.oneulnews.morning
+tail -f .morning.log
+
+# 그만두기
+launchctl bootout gui/$(id -u)/kr.ai.innohi.oneulnews.morning
+```
 
 ---
 
@@ -171,7 +202,8 @@ enum OneulNews {
 | `lib/summarize.js` | Claude 요약 + 리드 문장 대체 |
 | `lib/render.js` | HTML·RSS 만들기 |
 | `lib/feed-json.js` | 오늘하이용 JSON·낭독 원고 |
-| `build.mjs` | 전체 순서 |
+| `build.mjs` | 전체 순서 (`--dry` / `--render-only` / `--out=`) |
+| `scripts/morning.sh` | 이 맥이 매일 아침 부르는 실행 파일 |
 
 ## 보관 파일
 

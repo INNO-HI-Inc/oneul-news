@@ -4,7 +4,9 @@
 //   node build.mjs                 오늘치 생성
 //   node build.mjs --dry           파일을 쓰지 않고 결과만 확인
 //   node build.mjs --date=2026-08-30   특정 날짜로 라벨링 (수집은 항상 현재 피드 기준)
-//   node build.mjs --out=../landing/news  결과물을 다른 폴더로 (기본: news/dist)
+//   node build.mjs --out=<dir>      결과물을 다른 폴더로 (기본: dist)
+//   node build.mjs --render-only    수집·요약 없이 보관본만으로 페이지를 다시 그린다
+//                                   (디자인을 고쳤을 때, 그리고 이미 오늘치가 있을 때)
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -26,6 +28,7 @@ const DIST_DIR = path.resolve(ROOT, outArg || process.env.NEWS_OUT_DIR || 'dist'
 const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry');
 const dateArg = argv.find((a) => a.startsWith('--date='))?.slice(7);
+const RENDER_ONLY = argv.includes('--render-only');
 
 const log = (msg) => console.log(msg);
 
@@ -62,6 +65,8 @@ async function main() {
   const dateLabel = `${m}월 ${d}일`;
 
   log(`\n☀️  ${SITE.name} — ${date}(${weekday}) 아침 브리핑을 만듭니다.\n`);
+
+  if (RENDER_ONLY) return renderOnly(date, log);
 
   // 1. 수집
   log('1. 뉴스를 모읍니다');
@@ -166,6 +171,38 @@ async function main() {
   log(`   앱  : ${rel}/api/today.json  (오늘하이가 매일 아침 읽어가는 곳)`);
   log(`   보관: ${path.relative(process.cwd(), DATA_DIR)}/${date}.json`);
   log(`   요약: ${engine === 'claude' ? 'Claude' : '기사 리드 문장'}\n`);
+}
+
+/**
+ * 수집도 요약도 하지 않고, 보관해 둔 하루치만으로 페이지를 다시 그린다.
+ * 쓰는 곳 두 군데:
+ *   1) 디자인을 바꿨을 때 지난 아침까지 새 모양으로 다시 만들기
+ *   2) 이 컴퓨터가 이미 오늘치를 만들어 뒀을 때, 서버는 그리기만 하기
+ */
+async function renderOnly(date, log) {
+  const file = path.join(DATA_DIR, `${date}.json`);
+  let briefing;
+  try {
+    briefing = JSON.parse(await fs.readFile(file, 'utf8'));
+  } catch {
+    throw new Error(
+      `${path.relative(process.cwd(), file)} 이 없습니다. --render-only 는 보관본이 있어야 씁니다.`
+    );
+  }
+
+  const entries = await loadArchiveIndex(date, briefing);
+  const idx = entries.findIndex((e) => e.date === date);
+  await writeDist(briefing, entries, {
+    prev: entries[idx + 1]?.date,
+    next: entries[idx - 1]?.date,
+  });
+
+  const relPath = path.relative(process.cwd(), DIST_DIR);
+  const rel = !relPath || relPath.startsWith('..') ? DIST_DIR : relPath;
+  log(`✓ 보관본으로 다시 그렸습니다 (${entries.length}일치).`);
+  log(`   웹  : ${rel}/index.html`);
+  log(`   앱  : ${rel}/api/today.json`);
+  log(`   요약: ${briefing.engine === 'claude' ? 'Claude' : '기사 리드 문장'} (이미 만들어져 있던 것)\n`);
 }
 
 /** 보관용으로 줄인 하루치 — 지난 아침 페이지를 다시 그리는 데 필요한 만큼만. */
