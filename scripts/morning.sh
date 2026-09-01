@@ -18,6 +18,15 @@ echo "════ $(date '+%Y-%m-%d %H:%M:%S') 시작 ════"
 
 cd "$REPO" || { echo "저장소를 찾지 못했습니다: $REPO"; exit 1; }
 
+# launchd 는 06:40 에 놓친 작업을 **깨어난 직후** 실행한다. 오후에 노트북을 열면
+# 그 시각 기사를 모아 '아침 브리핑'으로 덮어써 버린다. 아침에만 돌게 막는다.
+# 손으로 지금 돌려보고 싶으면 FORCE=1 을 붙인다.
+HOUR="$(date +%-H)"
+if [ "${FORCE:-0}" != "1" ] && [ "$HOUR" -ge 9 ]; then
+  echo "지금 ${HOUR}시라 건너뜁니다. 아침(9시 이전)에만 만듭니다."
+  exit 0
+fi
+
 # 인터넷이 없으면 조용히 물러난다. 서버가 7시에 대신 발행한다.
 if ! /usr/bin/curl -sf -m 10 -o /dev/null https://www.yna.co.kr/rss/news.xml; then
   echo "네트워크가 없어 건너뜁니다."

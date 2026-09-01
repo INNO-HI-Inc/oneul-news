@@ -89,12 +89,19 @@ jobs:
             node -e "
               const d = require('./dist/api/today.json');
               console.log('- 이야기 ' + d.items.length + '개 / 밤사이 기사 ' + d.stats.articleCount + '건');
-              console.log('- 요약 엔진: ' + (d.engine === 'claude' ? 'Claude' : '기사 리드 문장'));
+              console.log('- 요약 엔진: ' + (d.engine === 'claude' ? 'Claude' : '⚠️ 기사 리드 문장'));
               console.log('- 한 줄: ' + d.glance);
               console.log('');
               console.log('> ' + d.greeting);
             "
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # 요약이 리드 문장으로 내려간 날은 눈에 띄게 남긴다.
+          # 이대로도 발행은 되지만, 며칠 이어지면 맥의 아침 작업이 죽은 것이다.
+          ENGINE=$(node -e "console.log(require('./dist/api/today.json').engine)")
+          if [ "$ENGINE" != "claude" ]; then
+            echo "::warning title=요약이 리드 문장으로 내려갔습니다::맥의 아침 작업(06:40)이 돌지 않았거나 실패했습니다. ~/oneul-news/.morning.log 를 확인하세요."
+          fi
 
       - name: Pages 아티팩트 업로드
         if: ${{ inputs.dry_run != true }}
