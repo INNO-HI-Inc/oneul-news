@@ -97,7 +97,11 @@ async function main() {
 
   // 4. 요약
   log('4. 요약합니다');
-  const { greeting, byId, engine } = await summarize(selected, { dateLabel, log });
+  const { greeting, byId, engine } = await summarize(selected, {
+    dateLabel,
+    articleCount: unique.length,
+    log,
+  });
 
   for (const section of sections) {
     section.clusters = section.clusters.map((c) => ({
