@@ -8,7 +8,7 @@ set -u
 export PATH="/Users/flareon078/.nvm/versions/node/v22.21.0/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export TZ="Asia/Seoul"
 
-REPO="/Users/flareon078/Desktop/oneul-news"
+REPO="/Users/flareon078/oneul-news"
 LOG="$REPO/.morning.log"
 DATE="$(date +%F)"
 
@@ -24,7 +24,7 @@ if ! /usr/bin/curl -sf -m 10 -o /dev/null https://www.yna.co.kr/rss/news.xml; th
   exit 0
 fi
 
-git pull --rebase --quiet || { echo "git pull 실패"; exit 1; }
+git pull --rebase --autostash --quiet || { echo "git pull 실패"; exit 1; }
 [ -d node_modules ] || npm ci --silent
 
 if ! node build.mjs; then
